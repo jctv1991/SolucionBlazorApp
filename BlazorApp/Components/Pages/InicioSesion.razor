@@ -1,0 +1,105 @@
+﻿@page "/"
+@layout LoginLayout
+
+@using System.Net.Http.Json
+@using BlazorApp.Components.Layout
+@using Microsoft.AspNetCore.Components.Forms
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inherits LayoutComponentBase
+@inject NavigationManager navManager
+
+<RadzenComponents />
+<div class="page">
+    <main>
+        <RadzenCard class="rz-my-12 rz-mx-auto rz-p-4 rz-p-md-12" style="max-width: 600px;">
+            <RadzenTemplateForm Data="@loginModel">
+                <ChildContent>
+                    <div class="row rz-justify-content-center">
+                        <RadzenTextBox @bind-Value="@loginModel.Username" Placeholder="Username" />
+                    </div>
+                    <div class="row rz-justify-content-center">
+                        <RadzenPassword @bind-Value="@loginModel.Password" Placeholder="Password" />
+                    </div>
+                    <div class="row rz-justify-content-center">
+
+                        <RadzenButton Text="Login" ButtonStyle="ButtonStyle.Primary" Click="@ButtonClicked" />
+                    </div>
+                </ChildContent>
+            </RadzenTemplateForm>
+            @if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <div class="alert alert-danger">@mensajeError</div>
+            }
+        </RadzenCard>
+    </main>
+</div>
+
+@code {
+    private LoginModel loginModel = new LoginModel();
+    private string mensajeError = string.Empty;
+
+    void ButtonClicked()
+    {
+        Task.Run(async () =>
+        {
+            var response = await Http.PostAsJsonAsync("/miControlador/IniciarSesion", new { username = loginModel.Username, password = loginModel.Password });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var resultado = await response.Content.ReadFromJsonAsync<RespuestaLogin>();
+                if (resultado != null && resultado.resultado)
+                {
+                    mensajeError = string.Empty;
+                    InvokeAsync(() => NavigationManager.NavigateTo("/")); // Redirigir a la página principal después del login exitoso
+                }
+                else
+                {
+                    mensajeError = resultado?.mensaje ?? "Error de autenticación";
+                }
+            }
+            else
+            {
+                mensajeError = "Error al comunicarse con el servidor";
+            }
+            StateHasChanged(); // Asegura que Blazor actualice el estado después de cambios asincrónicos
+        });
+    }
+
+
+
+    private async Task IniciarSesion()
+    {
+        var response = await Http.PostAsJsonAsync("/miControlador/IniciarSesion", new { username = loginModel.Username, password = loginModel.Password });
+
+        if (response.IsSuccessStatusCode)
+        {
+            var resultado = await response.Content.ReadFromJsonAsync<RespuestaLogin>();
+            if (resultado != null && resultado.resultado)
+            {
+                mensajeError = string.Empty;
+                NavigationManager.NavigateTo("/"); // Redirigir a la página principal después del login exitoso
+            }
+            else
+            {
+                mensajeError = resultado?.mensaje ?? "Error de autenticación";
+            }
+        }
+        else
+        {
+            mensajeError = "Error al comunicarse con el servidor";
+        }
+    }
+
+    public class LoginModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class RespuestaLogin
+    {
+        public bool resultado { get; set; } = false;
+        public string mensaje { get; set; } = string.Empty;
+    }
+}
